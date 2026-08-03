@@ -1,0 +1,207 @@
+{
+    "enabled": {
+        "type": "bool",
+        "description": "总开关",
+        "default": true
+    },
+    "session_list_mode": {
+        "type": "string",
+        "description": "生效群模式",
+        "hint": "whitelist=仅名单中的群开启；blacklist=名单中的群不开启；none=所有群开启。可用 /raise enable 快速把当前群加入名单。",
+        "options": ["whitelist", "blacklist", "none"],
+        "default": "whitelist"
+    },
+    "session_list": {
+        "type": "list",
+        "description": "生效群名单",
+        "hint": "填群 ID、完整 UMO 或 平台:群ID，每行一个；也可用 /raise enable 自动添加当前群。",
+        "items": {
+            "type": "string"
+        },
+        "default": []
+    },
+    "extraction_provider_id": {
+        "type": "string",
+        "description": "成长判定模型 ID",
+        "hint": "用于对话后判定好感/信任变化的 LLM Provider。留空则使用当前对话模型。",
+        "_special": "select_provider",
+        "default": ""
+    },
+    "extraction_max_tokens": {
+        "type": "int",
+        "description": "成长判定最大 Token",
+        "slider": {"min": 100, "max": 1000, "step": 50},
+        "default": 300
+    },
+    "extraction_timeout_seconds": {
+        "type": "int",
+        "description": "成长判定超时（秒）",
+        "slider": {"min": 10, "max": 120, "step": 5},
+        "default": 45
+    },
+    "max_single_delta": {
+        "type": "int",
+        "description": "单次最大变化值",
+        "hint": "每次对话好感/信任最多变化多少（含负向）。",
+        "slider": {"min": 1, "max": 10, "step": 1},
+        "default": 3
+    },
+    "daily_intimacy_cap": {
+        "type": "int",
+        "description": "好感每日正向上限",
+        "slider": {"min": 0, "max": 100, "step": 1},
+        "default": 15
+    },
+    "daily_trust_cap": {
+        "type": "int",
+        "description": "信任每日正向上限",
+        "slider": {"min": 0, "max": 100, "step": 1},
+        "default": 12
+    },
+    "attribute_min": {
+        "type": "int",
+        "description": "属性下限",
+        "default": 0
+    },
+    "attribute_max": {
+        "type": "int",
+        "description": "属性上限",
+        "default": 100
+    },
+    "habit_promote_count": {
+        "type": "int",
+        "description": "习惯候选转正次数",
+        "hint": "同一个习惯/偏好被观察到多少次后正式写入习惯列表。",
+        "slider": {"min": 1, "max": 10, "step": 1},
+        "default": 2
+    },
+    "initial_intimacy": {
+        "type": "int",
+        "description": "初始好感",
+        "hint": "新角色在该群首次开始养成时的好感初始值。",
+        "slider": {"min": 0, "max": 100, "step": 1},
+        "default": 0
+    },
+    "initial_trust": {
+        "type": "int",
+        "description": "初始信任",
+        "hint": "新角色在该群首次开始养成时的信任初始值。",
+        "slider": {"min": 0, "max": 100, "step": 1},
+        "default": 0
+    },
+    "initial_exp": {
+        "type": "int",
+        "description": "初始经验",
+        "hint": "新角色首次开始养成时的经验值，决定起始等级。",
+        "slider": {"min": 0, "max": 100000, "step": 10},
+        "default": 0
+    },
+    "initial_source": {
+        "type": "string",
+        "description": "初始值来源",
+        "hint": "auto=按当前逻辑群的完整人格、世界观、身份及定向关系分别用 LLM 生成每个成员基线，关系表数字仅作参考，失败时回退关系表/固定值；relation=直接使用关系表；llm=使用人格世界观推断；fixed=固定值。",
+        "options": ["auto", "relation", "llm", "fixed"],
+        "default": "auto"
+    },
+    "event_enabled": {
+        "type": "bool",
+        "description": "奇遇事件总开关",
+        "default": true
+    },
+    "event_trigger_chance": {
+        "type": "float",
+        "description": "奇遇触发概率",
+        "hint": "每次成功互动后触发奇遇的概率（0~1）。",
+        "slider": {"min": 0, "max": 1, "step": 0.01},
+        "default": 0.02
+    },
+    "event_trigger_mode": {
+        "type": "string",
+        "description": "奇遇触发模式",
+        "hint": "random=保持纯随机概率；context=仅当 LLM 判定当前对话处于适合奇遇的剧情节点时触发；hybrid=强剧情节点直接触发，普通互动仍按概率随机触发。",
+        "options": ["random", "context", "hybrid"],
+        "default": "hybrid"
+    },
+    "event_context_threshold": {
+        "type": "float",
+        "description": "剧情节点判定阈值",
+        "hint": "context/hybrid 模式下，LLM 对「此刻适合插入奇遇」的评分达到该值（0~1）即视为强节点。",
+        "slider": {"min": 0.5, "max": 1, "step": 0.05},
+        "default": 0.75
+    },
+    "event_random_min_score": {
+        "type": "float",
+        "description": "随机触发的相关性门槛",
+        "hint": "random/hybrid 模式下，随机命中后若 LLM 对对话的「适合奇遇」评分低于该值（0~1）则放弃触发，避免与上下文无关的突兀奇遇。",
+        "slider": {"min": 0, "max": 1, "step": 0.05},
+        "default": 0.4
+    },
+    "event_context_messages": {
+        "type": "int",
+        "description": "事件上下文消息数",
+        "hint": "触发判定与动态奇遇生成时读取最近多少条群聊消息作为上下文（需要 chat_history_context 插件）。",
+        "slider": {"min": 1, "max": 40, "step": 1},
+        "default": 8
+    },
+    "event_min_interval_hours": {
+        "type": "int",
+        "description": "奇遇最小间隔（小时）",
+        "hint": "设为 0 表示不限制小时级间隔，仍受奇遇每日上限约束。",
+        "slider": {"min": 0, "max": 720, "step": 1},
+        "default": 24
+    },
+    "event_max_per_day": {
+        "type": "int",
+        "description": "奇遇每日上限",
+        "slider": {"min": 1, "max": 10, "step": 1},
+        "default": 1
+    },
+    "event_expire_minutes": {
+        "type": "int",
+        "description": "奇遇等待超时（分钟）",
+        "hint": "超过该时间未选择则事件作废。",
+        "slider": {"min": 5, "max": 1440, "step": 5},
+        "default": 30
+    },
+    "event_target_mode": {
+        "type": "string",
+        "description": "奇遇指定回应成员",
+        "hint": "trigger=触发该事件的成员回应；best_relation=与角色关系最好的成员回应；anyone=谁先回复谁选择。",
+        "options": ["trigger", "best_relation", "anyone"],
+        "default": "trigger"
+    },
+    "event_llm_story": {
+        "type": "bool",
+        "description": "根据上下文动态生成奇遇",
+        "hint": "开启后，普通奇遇的剧情、选项和受限奖励均根据最近对话现场生成；特殊/终极事件只润色文字并保留规则。生成失败时安全回退事件模板。",
+        "default": true
+    },
+    "event_llm_narrative": {
+        "type": "bool",
+        "description": "奇遇结局 LLM 续写",
+        "hint": "开启后选择选项后由 LLM 以角色身份续写一小段剧情/对话，替代静态结果文案。",
+        "default": true
+    },
+    "ultimate_enabled": {
+        "type": "bool",
+        "description": "终极目标总开关",
+        "default": true
+    },
+    "ultimate_event_id": {
+        "type": "string",
+        "description": "终极事件模板 ID",
+        "hint": "留空使用 events.json 中第一个带 ultimate:true 的事件。",
+        "default": ""
+    },
+    "ultimate_auto_trigger": {
+        "type": "bool",
+        "description": "解锁后自动触发终极事件",
+        "hint": "关闭后即使条件满足也不自动触发，可配合 /raise event 手动安排。",
+        "default": true
+    },
+    "debug_mode": {
+        "type": "bool",
+        "description": "调试日志",
+        "default": false
+    }
+}
