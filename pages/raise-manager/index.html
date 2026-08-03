@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+    <title>养成管理</title>
+    <link rel="stylesheet" href="./style.css?v=0.1.1" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">RAISE · 养成系统</p>
+          <h1>养成管理</h1>
+          <p class="subtitle">成长进度、群员/Bot 关系、奇遇事件与终局剧本，都在这里管理。</p>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat"><span id="heroStates">0</span><small>养成角色</small></div>
+          <div class="hero-stat"><span id="heroEndings">0</span><small>终局达成</small></div>
+        </div>
+      </header>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <div class="toolbar">
+        <div class="toolbar-copy">
+          <strong>选择范围</strong>
+          <span>先选群聊，再选该群里的角色；未开始养成的角色会显示“尚未开始”。</span>
+        </div>
+        <div class="toolbar-actions">
+          <select id="group" class="control scope-current"></select>
+          <select id="bot" class="control"></select>
+          <button id="reload" class="button button-quiet" type="button">刷新</button>
+        </div>
+      </div>
+
+      <div id="detail" hidden>
+        <nav class="tabs" aria-label="养成管理分类">
+          <button class="tab is-active" data-tab="overview" type="button">状态</button>
+          <button class="tab" data-tab="members" type="button">成员关系</button>
+          <button class="tab" data-tab="events" type="button">成长日志</button>
+          <button class="tab" data-tab="templates" type="button">事件模板</button>
+          <button class="tab" data-tab="config" type="button">配置</button>
+        </nav>
+
+        <section id="overviewPanel" class="panel">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2 id="stateName">—</h2>
+                <p id="stateMeta">—</p>
+              </div>
+              <div class="actions" id="stateBadges"></div>
+            </div>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div class="lbl">等级</div>
+                <div class="num" id="statLevel">—</div>
+                <div class="sub" id="levelExp">—</div>
+                <div class="progress"><i id="levelBar" style="width:0%"></i></div>
+              </div>
+              <div class="stat-card">
+                <div class="lbl">平均好感</div>
+                <div class="num" id="statIntimacy">—</div>
+                <div class="sub">全部独立成员关系的均值</div>
+              </div>
+              <div class="stat-card">
+                <div class="lbl">平均信任</div>
+                <div class="num" id="statTrust">—</div>
+                <div class="sub">全部独立成员关系的均值</div>
+              </div>
+              <div class="stat-card">
+                <div class="lbl">习惯 / 奇遇</div>
+                <div class="num" id="statHabits">—</div>
+                <div class="sub" id="statEvents">—</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>目标</h2>
+                <p>阶段目标与终局事件的解锁进度。</p>
+              </div>
+            </div>
+            <div class="goal-list" id="goals"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>待定事件</h2>
+                <p>事件发出后由指定成员回复 A/B/C/D 结算。</p>
+              </div>
+              <div class="actions">
+                <button id="clearPending" class="button button-quiet button-small" type="button">作废事件</button>
+                <button id="triggerEvent" class="button button-primary button-small" type="button">触发奇遇/终局</button>
+              </div>
+            </div>
+            <div id="pending" class="pending-box">暂无待定事件</div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>手动修正</h2>
+                <p>好感/信任只按成员独立维护，请在“成员关系”页修改；这里仅修正全局经验。</p>
+              </div>
+            </div>
+            <div class="field-grid">
+              <label class="field"><span>经验</span><input id="correctExp" class="control" type="number" min="0" /></label>
+              <div class="field">
+                <span>&nbsp;</span>
+                <button id="correctGlobal" class="button button-secondary" type="button">保存修正</button>
+              </div>
+            </div>
+            <div class="actions" style="margin-top:14px;">
+              <button id="resetState" class="button button-danger button-small" type="button">重置该角色养成</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="membersPanel" class="panel" hidden>
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>成员关系</h2>
+                <p>每位群员与 Bot 独立存储，初始值自动来自 BotMesh 关系设定。</p>
+              </div>
+            </div>
+            <div class="member-grid" id="members"></div>
+          </div>
+        </section>
+
+        <section id="eventsPanel" class="panel" hidden>
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>成长日志</h2>
+                <p>最近 20 条成长与奇遇记录。</p>
+              </div>
+            </div>
+            <div class="event-list" id="events"></div>
+          </div>
+        </section>
+
+        <section id="templatesPanel" class="panel" hidden>
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>从概要生成事件</h2>
+                <p>输入一段奇遇/任务描述，AI 按世界观生成完整模板并自动追加保存。</p>
+              </div>
+              <button id="generateEvent" class="button button-secondary button-small" type="button">生成并保存</button>
+            </div>
+            <div class="field-grid">
+              <label class="field field-wide"><span>奇遇/任务概要</span>
+                <textarea id="generateSummary" class="control" style="min-height:84px;" placeholder="例如：雨夜，她在桥上等你，手里攥着一把伞……"></textarea>
+              </label>
+              <label class="field"><span>类型</span>
+                <select id="generateKind" class="control">
+                  <option value="normal">普通奇遇</option>
+                  <option value="special">特殊事件（计入终局进度）</option>
+                  <option value="ultimate">终局事件（带结局）</option>
+                </select>
+              </label>
+              <label class="field field-wide"><span>额外要求（可选）</span>
+                <input id="generateExtra" class="control" placeholder="例如：选项 C 会让她失望" />
+              </label>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>事件模板（events.json）</h2>
+                <p>带 <code>ultimate: true</code> 的是终局事件；数值由模板控制，LLM 只润色文字。</p>
+              </div>
+              <button id="saveEvents" class="button button-primary button-small" type="button">保存模板</button>
+            </div>
+            <textarea id="eventsText" class="control" spellcheck="false"></textarea>
+          </div>
+        </section>
+
+        <section id="configPanel" class="panel" hidden>
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>插件配置</h2>
+                <p>保存后即时生效（初始值来源、数值上限、奇遇概率、终局设置等）。</p>
+              </div>
+              <button id="saveConfig" class="button button-primary button-small" type="button">保存配置</button>
+            </div>
+            <textarea id="configText" class="control" spellcheck="false"></textarea>
+          </div>
+        </section>
+      </div>
+
+      <div id="emptyDetail" class="empty-state" hidden>
+        <h2>还没有养成状态</h2>
+        <p>先在目标群发送 <code>/raise enable</code>，开始互动后这里就会出现成长数据。</p>
+      </div>
+    </main>
+    <script src="/api/plugin/page/bridge-sdk.js"></script>
+    <script src="./app.js?v=0.1.1"></script>
+  </body>
+</html>
