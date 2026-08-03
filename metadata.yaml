@@ -1,0 +1,10 @@
+name: astrbot_plugin_raise
+display_name: 养成系统
+desc: 基于 BotMesh 的养成插件：通过对话自动积累好感/信任/经验，养成习惯并写入结构化记忆。
+version: 0.4.2
+author: codex
+repo: "https://github.com/chah-p7/astrbot_plugin_raise"
+astrbot_version: ">=4.24.2,<5"
+support_platforms:
+  - aiocqhttp
+  - qq_official
