@@ -302,14 +302,7 @@ class RaisePlugin(Star):
         return self._state_locks.setdefault(str(path), asyncio.Lock())
 
     def _read_botmesh_config(self) -> dict[str, Any]:
-        candidates = [
-            self.data_dir.parent / "config" / "astrbot_plugin_botmesh_config.json",
-            self.data_dir.parent.parent
-            / "config"
-            / "astrbot_plugin_botmesh_config.json",
-            Path("/root/data/config/astrbot_plugin_botmesh_config.json"),
-        ]
-        for path in candidates:
+        for path in self._botmesh_config_candidates():
             if path.is_file():
                 try:
                     payload = json.loads(
@@ -319,6 +312,11 @@ class RaisePlugin(Star):
                 except (OSError, ValueError, TypeError):
                     continue
         return {}
+
+    def _botmesh_config_candidates(self) -> tuple[Path, ...]:
+        """Resolve BotMesh config only from the active AstrBot data root."""
+        data_root = self.data_dir.resolve().parent.parent
+        return (data_root / "config" / "astrbot_plugin_botmesh_config.json",)
 
     @staticmethod
     def _resolved_persona_profile(
@@ -1473,11 +1471,8 @@ class RaisePlugin(Star):
         return "\n".join(lines)
 
     @staticmethod
-    def _format_event_outcome(
-        template: dict[str, Any],
-        option: dict[str, Any],
-        applied: dict[str, Any],
-    ) -> str:
+    def _event_delta_label(applied: dict[str, Any]) -> str:
+        """把本次选项结算的数值变化整理成一行，如「好感+2，信任+1，经验+3」。"""
         parts = []
         d_intimacy = int(applied.get("intimacy_delta", 0) or 0)
         d_trust = int(applied.get("trust_delta", 0) or 0)
@@ -1488,8 +1483,16 @@ class RaisePlugin(Star):
             parts.append(f"信任{d_trust:+d}")
         if exp_gained:
             parts.append(f"经验+{exp_gained}")
-        label = "，".join(parts) if parts else "关系没有明显变化"
+        return "，".join(parts) if parts else "关系没有明显变化"
+
+    @staticmethod
+    def _format_event_outcome(
+        template: dict[str, Any],
+        option: dict[str, Any],
+        applied: dict[str, Any],
+    ) -> str:
         outcome = str(option.get("outcome") or "").strip()
+        label = RaisePlugin._event_delta_label(applied)
         return f"✨ 奇遇结果：{outcome}\n（{label}）"
 
     async def _send_plain(self, event: AstrMessageEvent, text: str) -> None:
@@ -1571,26 +1574,37 @@ class RaisePlugin(Star):
             f"好感{int(relation.get('intimacy', state.intimacy) or 0)}，"
             f"信任{int(relation.get('trust', state.trust) or 0)}"
         )
-        try:
-            generated = await generate_context_event(
-                self.context,
-                config=self.config,
-                umo=scope["umo"],
-                identity=scope.get("identity") or {},
-                state_summary=state_summary,
-                conversation_context=conversation_context,
-                trigger_hint=trigger_hint,
+        # 上下文全新生成是首选，失败时重试一次，避免因一次返回格式不佳
+        # 就退回模板（生成内容才是贴合当前聊天的奇遇）。
+        contextual = None
+        for attempt in range(2):
+            try:
+                generated = await generate_context_event(
+                    self.context,
+                    config=self.config,
+                    umo=scope["umo"],
+                    identity=scope.get("identity") or {},
+                    state_summary=state_summary,
+                    conversation_context=conversation_context,
+                    trigger_hint=trigger_hint,
+                )
+                contextual = normalize_context_event(
+                    generated,
+                    event_id=f"context_{int(time.time())}_{uuid.uuid4().hex[:8]}",
+                    max_single_delta=self._cfg_int("max_single_delta", 3, 1, 10),
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.debug("[Raise] 上下文奇遇生成失败(第%d次): %s", attempt + 1, exc)
+                contextual = None
+            if contextual is not None:
+                break
+            logger.info(
+                "[Raise] 上下文奇遇生成无效(第%d次)，重试/兜底 scope=%s",
+                attempt + 1,
+                scope["scope_id"],
             )
-            contextual = normalize_context_event(
-                generated,
-                event_id=f"context_{int(time.time())}_{uuid.uuid4().hex[:8]}",
-                max_single_delta=self._cfg_int("max_single_delta", 3, 1, 10),
-            )
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            logger.debug("[Raise] 上下文奇遇生成失败，回退事件模板: %s", exc)
-            contextual = None
         if contextual is not None:
             logger.info(
                 "[Raise] 已根据近期对话生成奇遇 scope=%s event=%s",
@@ -2098,7 +2112,9 @@ class RaisePlugin(Star):
                 logger.debug("[Raise] 奇遇结局续写失败，使用静态结果: %s", exc)
                 narrative = ""
             if narrative:
-                message = narrative
+                # 续写文本是角色演绎，不包含数值；把本次结算的数值变化单独附上。
+                label = RaisePlugin._event_delta_label(applied)
+                message = f"{narrative}\n\n（{label}）"
         await self._send_plain(event, message)
         event.should_call_llm(False)
         event.stop_event()

@@ -45,6 +45,11 @@ class _Plain:
         self.text = text
 
 
+class _MessageChain:
+    def __init__(self, chain=None):
+        self.chain = list(chain or [])
+
+
 def _install_astrbot_stubs() -> None:
     if "astrbot.api" in sys.modules:
         return
@@ -56,6 +61,7 @@ def _install_astrbot_stubs() -> None:
     api.logger = _Logger()
     event = types.ModuleType("astrbot.api.event")
     event.AstrMessageEvent = object
+    event.MessageChain = _MessageChain
     event.filter = types.SimpleNamespace(
         command_group=_command_group,
         permission_type=_decorator,
@@ -103,6 +109,23 @@ class _Context:
 
 
 class RelationshipMigrationTests(unittest.IsolatedAsyncioTestCase):
+    def test_botmesh_config_discovery_is_anchored_to_data_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            data_dir = root / "plugin_data" / "astrbot_plugin_raise"
+            data_dir.mkdir(parents=True)
+            plugin = RaisePlugin.__new__(RaisePlugin)
+            plugin.data_dir = data_dir
+
+            candidates = plugin._botmesh_config_candidates()
+            self.assertEqual(1, len(candidates))
+            self.assertTrue(candidates[0].resolve().is_relative_to(root))
+            self.assertEqual({}, plugin._read_botmesh_config())
+
+            candidates[0].parent.mkdir(parents=True)
+            candidates[0].write_text('{"bots": []}', encoding="utf-8")
+            self.assertEqual({"bots": []}, plugin._read_botmesh_config())
+
     async def test_expired_fallback_is_retried_instead_of_becoming_permanent(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
